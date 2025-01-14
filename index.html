@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>配信向け星の翼ランダム抽選</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 50px;
+      background-image: url('images/background.png');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      color: #ffffff;
+    }
+
+    body::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 150%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: -1;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
+    }
+
+    .cost-group {
+      margin-top: 0px;
+      margin-bottom: 0px;
+    }
+
+    .cost-group h2 {
+      font-size: 20px;
+      color: #ffffff;
+    }
+
+    .character {
+      display: inline-block;
+      margin: 3px;
+      text-align: center;
+      position: relative;
+    }
+
+    .character img {
+      width: 100px;
+      height: 100px;
+      transition: filter 0.3s ease;
+      filter: brightness(50%);
+    }
+
+    .character.selected img {
+      filter: none;
+    }
+
+    .character p {
+      margin-top: 8px;
+      font-size: 15px;
+      line-height: 0;
+      margin-bottom: 0;
+      color: #ffffff;
+    }
+
+    #result {
+      font-size: 24px;
+      color: green;
+    }
+
+    .names-section {
+      margin-top: 20px;
+    }
+
+    .name-input {
+      margin: 5px;
+    }
+
+    .selection-result {
+      margin-top: 20px;
+      font-size: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      flex-direction: row;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .selection-result p {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #ffffff;
+      margin-top: 0; /* キャラ名の上の余白をなくす */
+      margin-bottom: 0; /* キャラ名の下の余白をなくす */
+    }
+
+    .selection-result img {
+  margin: 0; /* 画像の上下の余白を全てなくす */
+  width: 120px;
+  height: 120px;
+}
+
+    .awakening-F { color: red; }
+    .awakening-S { color: blue; }
+    .awakening-M { color: orange; }
+    .awakening-D { color: lightgreen; }
+    .awakening-B { color: gray; }
+  </style>
+</head>
+<body>
+
+  <h1>星の翼カスタム向けAllrandom</h1>
+  <p>生贄の名前を4人まで入力してください</p>
+
+  <!-- 参加者の名前入力フォーム -->
+  <div class="names-section">
+    <input type="text" id="name1" class="name-input" placeholder="名前1" />
+    <input type="text" id="name2" class="name-input" placeholder="名前2" />
+    <input type="text" id="name3" class="name-input" placeholder="名前3" />
+    <input type="text" id="name4" class="name-input" placeholder="名前4" />
+  </div>
+
+  <button onclick="selectAll()">全選択</button>
+  <button onclick="deselectAll()">全解除</button>
+  <br>
+  <button onclick="generateResults()">2v2抽選</button>
+  <button onclick="generate1v1Results()">1v1抽選</button>
+  <br>
+  <label for="showAwakening">覚醒を表示しない</label>
+  <input type="checkbox" id="showAwakening">
+
+  <!-- 1～9コストのキャラ -->
+  <div class="cost-group" id="cost30">
+    <h2>30コスト</h2>
+    <div id="group30"></div>
+  </div>
+
+  <!-- 10～19コストのキャラ -->
+  <div class="cost-group" id="cost25">
+    <h2>25コスト</h2>
+    <div id="group25"></div>
+  </div>
+
+  <!-- 20～30コストのキャラ -->
+  <div class="cost-group" id="cost20">
+    <h2>20コスト</h2>
+    <div id="group20"></div>
+  </div>
+
+  <!-- 31～35コストのキャラ -->
+  <div class="cost-group" id="cost15">
+    <h2>15コスト</h2>
+    <div id="group15"></div>
+  </div>
+
+  <div id="selectionResult" class="selection-result"></div>
+
+  <script>
+    const characterNames = [
+      "グリフィン", "スズラン", "影", "キャヴァリー", "ラジエル", 
+      "エルフィン", "シュウウ", "ヒカリ", "ケルビム", 
+      "シャープ", "スカイセーバー", "シャオリン", "18号", "アンジェリス", 
+      "フリード", "シグナス", "アリス", "カゼ", "ヴァルキア", "アイーダ", 
+      "ヴァーチェ", "セラフィム", "スコーピオン", "パラス", "ベータ", 
+      "エミカ", "デュカリオン", "チンニ", "ザハロワ", "ダークスター", 
+      "ローランド", "スノーウォル", "ヤミン", "カタリナ", "オーキッド"
+    ];
+
+    const awakenings = ["F覚醒", "S覚醒", "M覚醒", "D覚醒", "B覚醒"];
+
+    function displayCharacters() {
+      const imageContainer30 = document.getElementById('group30');
+      const imageContainer25 = document.getElementById('group25');
+      const imageContainer20 = document.getElementById('group20');
+      const imageContainer15 = document.getElementById('group15');
+      
+      for (let i = 0; i < 35; i++) {
+        const img = document.createElement('img');
+        img.src = `images/item${i + 1}.png`;  // 画像のパス
+        img.alt = `item${i + 1}`;
+        
+        const div = document.createElement('div');
+        div.classList.add('character');
+        
+        const charName = characterNames[i];
+        const nameLabel = document.createElement('p');
+        nameLabel.textContent = charName;
+
+        div.appendChild(img);
+        div.appendChild(nameLabel);
+        
+        div.addEventListener('click', function() {
+          toggleSelection(div, i + 1);
+        });
+
+        if (i < 9) {
+          imageContainer30.appendChild(div);
+        } else if (i < 19) {
+          imageContainer25.appendChild(div);
+        } else if (i < 30) {
+          imageContainer20.appendChild(div);
+        } else {
+          imageContainer15.appendChild(div);
+        }
+      }
+    }
+
+    function toggleSelection(div, characterId) {
+      if (div.classList.contains('selected')) {
+        div.classList.remove('selected');
+        selectedCharacters = selectedCharacters.filter(id => id !== characterId);
+      } else {
+        div.classList.add('selected');
+        selectedCharacters.push(characterId);
+      }
+    }
+
+    function selectAll() {
+      selectedCharacters = [];
+      document.querySelectorAll('.character').forEach(div => {
+        div.classList.add('selected');
+        const img = div.querySelector('img');
+        const characterId = parseInt(img.alt.replace('item', ''));
+        selectedCharacters.push(characterId);
+      });
+    }
+
+    function deselectAll() {
+      selectedCharacters = [];
+      document.querySelectorAll('.character').forEach(div => {
+        div.classList.remove('selected');
+      });
+    }
+
+    function generateResults() {
+      const name1 = document.getElementById('name1').value.trim();
+      const name2 = document.getElementById('name2').value.trim();
+      const name3 = document.getElementById('name3').value.trim();
+      const name4 = document.getElementById('name4').value.trim();
+
+      const names = [name1, name2, name3, name4].filter(name => name !== "");
+
+      if (names.length !== 4) {
+        alert('4人の名前を入力してください');
+        return;
+      }
+
+      if (selectedCharacters.length < names.length) {
+        alert('選択したキャラが足りません。');
+        return;
+      }
+
+      let resultHTML = '';
+      const results = [];
+
+      names.forEach((name) => {
+        const randomCharacter = selectedCharacters[Math.floor(Math.random() * selectedCharacters.length)];
+        results.push({ name: name, characterId: randomCharacter });
+      });
+
+      const showAwakening = !document.getElementById('showAwakening').checked;
+
+      results.forEach(result => {
+        let awakening = '';
+        let awakeningClass = '';
+        if (showAwakening) {
+          awakening = awakenings[Math.floor(Math.random() * awakenings.length)];
+        }
+
+        if (awakening.includes('F')) {
+          awakeningClass = 'awakening-F';
+        } else if (awakening.includes('S')) {
+          awakeningClass = 'awakening-S';
+        } else if (awakening.includes('M')) {
+          awakeningClass = 'awakening-M';
+        } else if (awakening.includes('D')) {
+          awakeningClass = 'awakening-D';
+        } else if (awakening.includes('B')) {
+          awakeningClass = 'awakening-B';
+        }
+
+        resultHTML += `
+          <p>
+            ${result.name}
+            <br>
+            <img src="images/item${result.characterId}.png" alt="Character ${result.characterId}" />
+            <br>
+            ${characterNames[result.characterId - 1]}
+            <br>
+            <span class="${awakeningClass}">${awakening}</span>
+          </p>
+        `;
+      });
+
+      document.getElementById('selectionResult').innerHTML = resultHTML;
+    }
+
+    function generate1v1Results() {
+      const name1 = document.getElementById('name1').value.trim();
+      const name2 = document.getElementById('name2').value.trim();
+
+      if (!name1 || !name2) {
+        alert('1v1のためには2人の名前が必要です。');
+        return;
+      }
+
+      const results = [];
+      const charactersAvailable = selectedCharacters.slice();
+
+      // 1人目のキャラ3体
+      const name1Characters = [];
+      for (let i = 0; i < 3; i++) {
+        const randomCharacter = charactersAvailable[Math.floor(Math.random() * charactersAvailable.length)];
+        name1Characters.push(randomCharacter);
+        charactersAvailable.splice(charactersAvailable.indexOf(randomCharacter), 1);
+      }
+
+      // 2人目のキャラ3体
+      const name2Characters = [];
+      for (let i = 0; i < 3; i++) {
+        const randomCharacter = charactersAvailable[Math.floor(Math.random() * charactersAvailable.length)];
+        name2Characters.push(randomCharacter);
+        charactersAvailable.splice(charactersAvailable.indexOf(randomCharacter), 1);
+      }
+
+      // 結果生成
+      results.push({ name: name1, characters: name1Characters });
+      results.push({ name: name2, characters: name2Characters });
+
+      let resultHTML = '';
+      results.forEach(result => {
+        resultHTML += `<p>${result.name}: `;
+        result.characters.forEach(characterId => {
+          let awakening = '';
+          let awakeningClass = '';
+          if (!document.getElementById('showAwakening').checked) {
+            awakening = awakenings[Math.floor(Math.random() * awakenings.length)];
+          }
+
+          if (awakening.includes('F')) {
+            awakeningClass = 'awakening-F';
+          } else if (awakening.includes('S')) {
+            awakeningClass = 'awakening-S';
+          } else if (awakening.includes('M')) {
+            awakeningClass = 'awakening-M';
+          } else if (awakening.includes('D')) {
+            awakeningClass = 'awakening-D';
+          } else if (awakening.includes('B')) {
+            awakeningClass = 'awakening-B';
+          }
+
+          resultHTML += `
+            <img src="images/item${characterId}.png" alt="Character ${characterId}" />
+            <br>
+            ${characterNames[characterId - 1]}
+            <br>
+            <span class="${awakeningClass}">${awakening}</span>
+          `;
+        });
+        resultHTML += `</p>`;
+      });
+
+      document.getElementById('selectionResult').innerHTML = resultHTML;
+    }
+
+    window.onload = displayCharacters;
+  </script>
+</body>
+</html>
